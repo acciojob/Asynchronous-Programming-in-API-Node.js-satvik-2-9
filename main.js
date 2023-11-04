@@ -1,13 +1,46 @@
 const fs = require('fs');
-const http = require('http');
+const https = require('https');  // Note: I'm using 'https' here because the given test URL uses HTTPS
 
 function fetchFromAPI(url) {
-  // TODO: Return a promise that resolves to the response from the API
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }).on('error', (error) => {
+      reject(error);
+    });
+  });
 }
 
 function saveToFile(filePath, data) {
-  // TODO: Use fs.writeFile to save the data to the specified file
+  return new Promise((resolve, reject) => {
+    fs.writeFile(filePath, JSON.stringify(data), (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
 }
-module.exports = function fetchFromAPI(url, filePath){ };
 
-// TODO: Call fetchFromAPI and saveToFile with the command-line arguments
+module.exports = function fetchAndSave(url, filePath) {
+  return fetchFromAPI(url)
+    .then((data) => saveToFile(filePath, data));
+};
+
+// Calling fetchFromAPI and saveToFile with command-line arguments
+const [,, apiUrl, outputFilePath] = process.argv;
+if (apiUrl && outputFilePath) {
+  fetchAndSave(apiUrl, outputFilePath)
+    .then(() => console.log('Data fetched and saved successfully.'))
+    .catch(error => console.error('Error:', error));
+}
